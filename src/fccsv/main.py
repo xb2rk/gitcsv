@@ -1,6 +1,7 @@
-"""CLI dispatch only. All logic lives in app/ and domain/."""
+"""fccsv v2 entry: `fccsv2` console script + `python -m fccsv`."""
+
+from __future__ import annotations
 
 from fccsv.interfaces.cli import main
 
-if __name__ == "__main__":
-    main()
+__all__ = ["main"]

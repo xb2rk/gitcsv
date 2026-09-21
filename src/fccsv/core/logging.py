@@ -1,28 +1,23 @@
-"""Logging setup. One format for CLI and future TUI; verbosity via configure()."""
+"""Logging: one format for CLI and future TUI. Warnings surface; info on -v."""
+
+from __future__ import annotations
 
 import logging
-import sys
 
-_INFO = logging.INFO
+_configured = False
 
 
 def get_logger(name: str) -> logging.Logger:
-    logger = logging.getLogger(name)
-    if not logger.handlers:
-        handler = logging.StreamHandler(sys.stderr)
-        handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
-        logger.addHandler(handler)
-        logger.setLevel(_INFO)
-    return logger
+    return logging.getLogger(f"fccsv.{name}")
 
 
 def configure(*, verbose: bool = False, quiet: bool = False) -> None:
-    """Settle the fccsv logger family once, after arg parsing."""
+    global _configured
     level = logging.DEBUG if verbose else (logging.ERROR if quiet else logging.INFO)
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter("%(levelname)s %(name)s: %(message)s"))
     root = logging.getLogger("fccsv")
+    root.handlers.clear()
+    root.addHandler(handler)
     root.setLevel(level)
-    for handler in root.handlers:
-        handler.setLevel(level)
-    # Children created before configure() inherit on next get_logger call.
-    for name in ("fccsv.sync", "fccsv.sheets"):
-        logging.getLogger(name).setLevel(level)
+    _configured = True

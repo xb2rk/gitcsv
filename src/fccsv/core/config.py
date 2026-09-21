@@ -1,25 +1,13 @@
-"""Project config: spreadsheet link + table mappings. No Sheets I/O here."""
+"""Typed project config. One spreadsheet today; `sources` list keeps multi-source open."""
 
 from __future__ import annotations
 
-import json
 from dataclasses import asdict, dataclass, field
-from pathlib import Path
-
-from fccsv.core.constants import (
-    DEFAULT_CONFIG_FILENAME,
-    DEFAULT_CREDENTIALS_FILENAME,
-    DEFAULT_CSV_DIRNAME,
-    DEFAULT_STATE_FILENAME,
-    DEFAULT_TOKEN_FILENAME,
-    find_project_root,
-)
+from typing import Any
 
 
 @dataclass
 class TableMapping:
-    """One tab <-> one CSV file. Column maps are sheet_header -> csv_header."""
-
     tab: str
     csv: str
     key_column: str = ""
@@ -28,58 +16,73 @@ class TableMapping:
 
 
 @dataclass
-class FccsvConfig:
+class SourceConfig:
     spreadsheet_id: str = ""
-    csv_dir: str = DEFAULT_CSV_DIRNAME
     tables: list[TableMapping] = field(default_factory=list)
-    credentials_file: str = DEFAULT_CREDENTIALS_FILENAME
-    token_file: str = DEFAULT_TOKEN_FILENAME
-    state_file: str = DEFAULT_STATE_FILENAME
 
-    @classmethod
-    def config_path(cls, project_root: Path) -> Path:
-        return project_root / DEFAULT_CONFIG_FILENAME
 
-    @classmethod
-    def load(cls, project_root: Path) -> FccsvConfig:
-        path = cls.config_path(project_root)
-        if not path.exists():
-            return cls()
-        data = json.loads(path.read_text(encoding="utf-8"))
-        tables = [TableMapping(**t) for t in data.get("tables", [])]
-        return cls(
-            spreadsheet_id=data.get("spreadsheet_id", ""),
-            csv_dir=data.get("csv_dir", DEFAULT_CSV_DIRNAME),
-            tables=tables,
-            credentials_file=data.get("credentials_file", DEFAULT_CREDENTIALS_FILENAME),
-            token_file=data.get("token_file", DEFAULT_TOKEN_FILENAME),
-            state_file=data.get("state_file", DEFAULT_STATE_FILENAME),
-        )
+@dataclass
+class FccsvConfig:
+    """Root config. `sources[0]` is active; more entries reserved for later."""
 
-    def save(self, project_root: Path) -> Path:
-        path = self.config_path(project_root)
-        payload = asdict(self)
-        path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
-        return path
+    sources: list[SourceConfig] = field(default_factory=list)
+    csv_dir: str = "Assets/CSV"
+    credentials_file: str = "credentials.json"
+    token_file: str = "token.json"
+    state_file: str = ".fccsv-state.json"
 
-    def csv_dir_path(self, project_root: Path) -> Path:
-        p = Path(self.csv_dir)
-        return p if p.is_absolute() else project_root / p
+    @property
+    def active(self) -> SourceConfig:
+        if not self.sources:
+            self.sources.append(SourceConfig())
+        return self.sources[0]
 
     def table_by_tab(self, tab: str) -> TableMapping | None:
-        for t in self.tables:
-            if t.tab == tab:
-                return t
+        for table in self.active.tables:
+            if table.tab == tab:
+                return table
         return None
 
-    def table_by_csv(self, csv: str) -> TableMapping | None:
-        for t in self.tables:
-            if t.csv == csv:
-                return t
-        return None
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
 
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> FccsvConfig:
+        sources: list[SourceConfig] = []
+        raw_sources = data.get("sources")
+        if raw_sources:
+            for entry in raw_sources:
+                tables = [TableMapping(**t) for t in entry.get("tables", [])]
+                sources.append(
+                    SourceConfig(spreadsheet_id=entry.get("spreadsheet_id", ""), tables=tables)
+                )
+        else:
+            # v1 shape: top-level spreadsheet_id + tables.
+            tables = [TableMapping(**t) for t in data.get("tables", [])]
+            sources.append(
+                SourceConfig(spreadsheet_id=data.get("spreadsheet_id", ""), tables=tables)
+            )
+        return cls(
+            sources=sources,
+            csv_dir=data.get("csv_dir", "Assets/CSV"),
+            credentials_file=data.get("credentials_file", "credentials.json"),
+            token_file=data.get("token_file", "token.json"),
+            state_file=data.get("state_file", ".fccsv-state.json"),
+        )
 
-def resolve_project_root(explicit: str | None = None) -> Path:
-    if explicit:
-        return find_project_root(Path(explicit))
-    return find_project_root(Path.cwd())
+    def validate(self) -> list[str]:
+        issues: list[str] = []
+        tabs = [t.tab for t in self.active.tables]
+        csvs = [t.csv for t in self.active.tables]
+        if len(set(tabs)) != len(tabs):
+            dupes = sorted({t for t in tabs if tabs.count(t) > 1})
+            issues.append(f"duplicate tabs: {dupes}")
+        if len(set(csvs)) != len(csvs):
+            dupes = sorted({c for c in csvs if csvs.count(c) > 1})
+            issues.append(f"duplicate csvs: {dupes}")
+        for table in self.active.tables:
+            if not table.tab.strip():
+                issues.append("blank tab name")
+            if not table.csv.strip():
+                issues.append(f"[{table.tab}] blank csv")
+        return issues

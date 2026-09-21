@@ -1,3 +1,3 @@
-"""fccsv: general FC CSV <-> Google Sheets bidirectional sync."""
+"""fccsv v2. Wire-compat with v1; domain core has zero third-party deps."""
 
-__version__ = "0.1.0"
+__version__ = "2.0.0"
