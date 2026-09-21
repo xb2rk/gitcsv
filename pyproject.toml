@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fccsv"
+version = "0.1.0"
+description = "General FC CSV <-> Google Sheets bidirectional sync for Craftland Studio projects."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+dependencies = []
+
+[project.optional-dependencies]
+sheets = [
+  "google-api-python-client>=2.0",
+  "google-auth-oauthlib>=1.0",
+  "google-auth-httplib2>=0.2",
+]
+tui = ["textual>=0.80"]
+dev = ["pytest>=8.0", "ruff>=0.4"]
+
+[project.scripts]
+fccsv = "fccsv.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

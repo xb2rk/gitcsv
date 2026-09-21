@@ -1,0 +1,10 @@
+# Local fccsv state: OAuth tokens, local overrides, backups, caches.
+token.json
+credentials.json
+.fccsv-state.json
+config.local.json
+backups/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
