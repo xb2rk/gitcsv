@@ -1,16 +1,5 @@
-# Local fccsv state: OAuth client secrets, tokens, local overrides, backups, caches.
-token.json
-credentials.json
-.fccsv-state.json
-config.local.json
-backups/
-.env
 __pycache__/
 *.py[cod]
 .pytest_cache/
-.ruff_cache/
-.mypy_cache/
-# Release packaging (the real credentials.json is injected at build time).
-dist/
-build/
-*.spec
+.venv/
+.fccsv-v3/

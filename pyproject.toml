@@ -3,46 +3,22 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fccsv"
-version = "2.0.0"
-description = "FC CSV <-> Google Sheets sync v2: partial sync, fetch/log, strict schema. Wire-compat with fccsv v1."
+name = "fccsv3"
+version = "0.1.0a0"
+description = "Safe CSV and Google Sheets synchronization for Craftland projects"
 readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
-dependencies = []
 
 [project.optional-dependencies]
 sheets = [
-  "google-api-python-client>=2.0",
-  "google-auth-oauthlib>=1.0",
-  "google-auth-httplib2>=0.2",
+    "google-api-python-client>=2.0",
+    "google-auth>=2.0",
+    "google-auth-oauthlib>=1.0",
+    "requests>=2.0",
 ]
-tui = ["textual>=0.80"]
-dev = ["pytest>=8.0", "pytest-asyncio>=0.23", "ruff>=0.4", "mypy>=1.0"]
 
 [project.scripts]
-fccsv = "fccsv.main:main"
+fccsv = "fccsv3.interfaces.cli:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
-
-[tool.ruff]
-target-version = "py311"
-line-length = 100
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-explicit_package_bases = true
-mypy_path = "src"
-
-# Google client libs live in the optional `sheets` extra; the core stays
-# importable (and type-checkable) without them installed.
-[[tool.mypy.overrides]]
-module = ["google.*", "googleapiclient.*", "google_auth_oauthlib.*"]
-ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-pythonpath = ["src"]
-asyncio_mode = "auto"
