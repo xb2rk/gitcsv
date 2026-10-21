@@ -3,22 +3,23 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "fccsv3"
-version = "0.1.0a0"
-description = "Safe CSV and Google Sheets synchronization for Craftland projects"
+name = "gitcsv"
+version = "0.1.0"
+description = "Git-like version control and synchronization between CSV files and Google Sheets"
 readme = "README.md"
 requires-python = ">=3.11"
-
-[project.optional-dependencies]
-sheets = [
-    "google-api-python-client>=2.0",
-    "google-auth>=2.0",
-    "google-auth-oauthlib>=1.0",
-    "requests>=2.0",
+dependencies = [
+    "typer>=0.12.0",
+    "rich>=13.8.0",
+    "python-dotenv>=1.0.0",
+    "google-api-python-client>=2.100.0",
+    "google-auth>=2.20.0",
+    "google-auth-oauthlib>=1.0.0",
+    "requests>=2.30.0",
 ]
 
 [project.scripts]
-fccsv = "fccsv3.interfaces.cli:main"
+gitcsv = "gitcsv.cli.main:run"
 
 [tool.setuptools.packages.find]
 where = ["src"]

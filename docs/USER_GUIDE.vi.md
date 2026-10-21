@@ -1,113 +1,176 @@
-# Hướng dẫn fccsv v3 (bản đang phát triển)
+# Hướng Dẫn Sử Dụng gitcsv (User Guide)
 
-## Hiểu ba nơi lưu dữ liệu
+`gitcsv` là công cụ đồng bộ và quản lý phiên bản hai chiều giữa các file CSV trong dự án game và Google Sheets, hoạt động dựa trên mô hình tư duy quen thuộc của Git.
 
-- **CSV** là file trong dự án game, gồm dòng tên cột, dòng kiểu dữ liệu,
-  rồi các dòng dữ liệu. Thứ tự dòng có thể quan trọng.
-- **Sheet** là bảng Google tương ứng. Sheet không có dòng kiểu dữ liệu CSV.
-- **BASE** là phiên bản đã được v3 xác minh ở lần đồng bộ trước. V3 lưu BASE,
-  lịch sử và bản sao để phục hồi trong `.fccsv3/state.sqlite3`. Bạn không cần
-  tạo hay sửa khóa dòng để dùng hằng ngày.
+---
 
-## Quy trình thường dùng
+## 1. Cài đặt
 
-1. Sửa CSV hoặc Sheet như bình thường.
-2. Chạy `fccsv status` để thấy bảng nào đổi.
-3. Chạy `fccsv diff BossLootData` để xem cột, dòng và ô khác nhau.
-4. Chạy `fccsv plan push BossLootData` để xem thao tác có được phép không.
-5. Nếu muốn lấy CSV làm nguồn, chạy `fccsv push BossLootData`.
-   Nếu muốn lấy Sheet làm nguồn, chạy `fccsv pull BossLootData`.
-   Nếu mỗi bên sửa các ô khác nhau sau BASE, chạy `fccsv sync BossLootData`.
+Mở PowerShell hoặc Command Prompt và chạy lệnh:
 
-`push` và `pull` luôn viết theo một chiều được nêu trong tên lệnh. Viết đúng
-thứ tự: `fccsv push BossLootData --force`, **không phải** `--force push`.
-`--force` xác nhận chọn chiều đó dù phía đích cũng đã đổi. Nó không bỏ qua lỗi
-CSV hoặc yêu cầu xem lại schema. V3 luôn in nguyên lệnh gợi ý có thể sao chép.
-
-## Trước khi chuyển từ v2
-
-Chạy `fccsv doctor` để kiểm tra trạng thái v2, CSV, Sheet, BASE và operation
-v3 đang chờ phục hồi. Cảnh báo khóa `ItemId` cũ không còn duy nhất là gợi ý
-để xem `diff`; v3 sẽ hiển thị cột nào được dùng để nhận diện dòng. Dừng các
-tiến trình v2 đang ghi trước khi chuyển sang v3.
-
-Chạy `fccsv backup --output cutover.zip` để lưu bản sao có checksum. Đường
-dẫn ZIP phải là tên file mới. Backup gồm byte CSV, giá trị Sheet, config và
-state hiện có; kiểm tra lại hai phía trước khi hoàn tất ZIP. Backup chỉ chứa
-giá trị hiển thị từ Sheets, không chứa công thức hay định dạng. Hiện chưa thử nghiệm ghi Google
-thật, nên đây vẫn là công cụ chuẩn bị cutover, chưa phải tín hiệu cho phép
-chuyển Sheet sản xuất.
-
-ZIP có `manifest.json` (checksum và đường dẫn CSV gốc), `csv/NNN.csv`,
-`sheet/values.json`, `config/.fccsv.json` và, nếu tồn tại,
-`config/.fccsv-state.json`, `legacy-base/NNN.json`, `v3/state.sqlite3`.
-Để có thể quay về nguyên trạng cả công thức và định dạng, hãy tạo thêm bản sao
-Google spreadsheet bằng công cụ của Google trước cutover. ZIP của v3 không
-thay thế bản sao đó; Sheets không cung cấp ảnh chụp đồng thời tất cả tab.
-Lệnh ghi của v3 xóa toàn bộ giá trị trong tab rồi ghi lại bảng. Trước khi
-xóa, v3 kiểm tra và từ chối tab có công thức vì không thể bảo toàn công thức
-qua thao tác này. Hãy dùng tab dữ liệu thuần; kiểm tra công thức cũng không
-thể ngăn thay đổi đồng thời giữa lúc đọc và ghi Sheet.
-
-Khi cần xử lý vài bảng, viết các tên sau lệnh, chẳng hạn
-`fccsv push ActiveSkillData ProgressionAccessData --force`, hoặc chọn file
-bằng `fccsv push Assets/CSV/BossLootData.csv --force`. Từ gốc dự án, dùng
-`fccsv plan push . --force` rồi `fccsv push . --force` để chọn các CSV đã
-khai báo nằm dưới thư mục hiện tại, giống Git. Muốn chọn mọi bảng từ bất kỳ
-thư mục nào, dùng `fccsv plan push --all --force` rồi `fccsv push --all --force`.
-Có thể ghép nhiều đường dẫn và tên bảng trong một lệnh. V3 kiểm tra mọi bảng
-đã chọn trước khi ghi và dừng nếu một bảng bị chặn.
-Chế độ text in một dòng cho mỗi bảng ngay khi hoàn tất; `--verbose` mở rộng
-thông tin. Dòng cuối cho biết số bảng đã xong và thời gian chạy. Các bảng
-không cần ghi được xác minh bằng lượt đọc Sheet theo nhóm rồi cập nhật BASE.
-Bảng cần ghi vẫn được đọc lại ngay trước và sau thao tác để tránh ghi đè thay
-đổi mới; vì vậy số yêu cầu Google tăng theo số bảng thực sự cần ghi. V3
-lưu tạm danh sách tab một phút để giảm API call. Khi Google trả HTTP 429,
-CLI báo rõ và tự đợi 60 giây để thử lại tối đa ba lần. Nếu vẫn dừng, chạy
-`fccsv recover` để kiểm tra operation đang chờ trước khi chạy lại. Nhiều
-tab Google không thể ghi như một giao dịch duy nhất: nếu bảng sau gặp lỗi,
-các bảng trước đã hoàn tất vẫn giữ nguyên. Kết quả lệnh nêu rõ các bảng đã
-xong và operation cần phục hồi. Bảng có cột Sheet mới cần kéo riêng với `--type`; tùy chọn này chỉ dùng
-cho đúng một bảng trong lệnh `pull`.
-
-Khi cột Sheet mới được kéo về CSV, khai báo kiểu cho cột đó:
-
-```powershell
-fccsv pull Items --force --accept-schema --type Extra=text
+```bash
+# Cài đặt từ thư mục mã nguồn gitcsv
+pip install -e tools/gitcsv
 ```
 
-Nếu lệnh ghi bị gián đoạn, chạy `fccsv recover` để lấy mã operation, rồi
-`fccsv recover <mã>` để xem hai phía đang ở bản trước, bản sau, hay bản khác.
-Chọn `--continue` để hoàn tất kết quả dự kiến hoặc `--restore` để trả lại bản
-trước. Nếu dữ liệu hiện tại không trùng cả hai bản đã lưu, v3 yêu cầu bạn xem
-lại trước khi cho phép `--force`.
+Sau khi cài đặt, lệnh `gitcsv` sẽ có sẵn ở bất kỳ thư mục nào trên máy tính của bạn.
 
-Nếu muốn đảo ngược một operation đã hoàn tất, xem trước bằng
-`fccsv undo BossLootData --dry-run`, rồi chạy `fccsv undo BossLootData`.
-Chỉ operation hoàn tất mới nhất của bảng đó có thể Undo; nếu CSV hoặc Sheet
-đã thay đổi sau đó, v3 sẽ chặn để tránh ghi đè. Undo cũng có lịch sử và có
-thể phục hồi nếu bị gián đoạn.
+---
 
-Nếu phải quay về v2 sau cutover, dừng cả hai công cụ ghi trước. Xử lý mọi
-operation v3 đang chờ bằng `recover`; nếu chỉ cần đảo thao tác mới nhất, dùng
-`undo` theo hướng dẫn trên. Với rollback toàn bộ, dùng `manifest.json` để
-khôi phục đúng các CSV và state/BASE v2 từ **cùng một ZIP trước cutover**,
-đồng thời khôi phục các tab Sheet và `_fccsv` từ bản sao spreadsheet cùng thời
-điểm. `sheet/values.json` chỉ là phương án khôi phục giá trị; nó không khôi
-phục công thức hay định dạng. Sau đó so sánh lại cả hai phía với bản đã lưu
-trước khi cho v2 ghi. V3 chưa có lệnh tự động khôi phục toàn bộ ZIP.
+## 2. Khởi tạo dự án (`gitcsv init`)
 
-Trước khi đọc Sheet, dùng `fccsv auth status` để kiểm tra vị trí token.
-Mỗi người chạy `fccsv auth login` bằng tài khoản Google của mình. Có thể
-copy `tools/fccsv-v3/.env.example` thành `.env.local` ở gốc dự án rồi sửa
-`FCCSV3_TOKEN_FILE` và `FCCSV3_CREDENTIALS_FILE` thành đường dẫn file trên máy
-đó. `.env.local` chỉ chứa **đường dẫn**, không chứa nội dung token; Git bỏ qua
-file này. Đường dẫn truyền bằng `--token` hoặc `--credentials` được ưu tiên
-trước biến môi trường, rồi `.env.local`, rồi `.fccsv.json`. Không chia sẻ
-`token.json` cho người khác. Token có sẵn của v2 vẫn dùng được.
+Di chuyển đến thư mục dự án game (nơi chứa thư mục `Assets/CSV`):
 
-**Hiện tại chỉ thử với CSV tạm và Sheet giả.** Chưa chạy các lệnh ghi v3 trên
-Sheet sản xuất. Dùng `fccsv tui` để xem trạng thái, diff, preview và xác
-nhận thao tác cho từng bảng. TUI hiện lệnh CLI tương ứng để sao chép. Các ca
-đổi schema phức tạp vẫn dùng CLI. Quy trình đăng nhập trình duyệt chưa được
-kiểm tra trực tiếp trong môi trường này.
+```bash
+cd "D:/Craftland Projects/PlantsVsZombiesFCC"
+```
+
+Chạy lệnh khởi tạo:
+
+```bash
+gitcsv init "https://docs.google.com/spreadsheets/d/1BxiMVs0XRA5nFMdKvBdBZjgmUUqptlbs74OgvE2upms/edit" --csv-dir Assets/CSV
+```
+
+*Tool sẽ tự động:*
+* Trích xuất Spreadsheet ID từ link Google Sheet.
+* Quét toàn bộ file `.csv` trong `Assets/CSV` và đối chiếu với các sheet tab trên Google Sheets để tự động ánh xạ 1-1.
+* Tạo file cấu hình `.gitcsv/config.json`.
+* Tự động thêm các file nhạy cảm (`.gitcsv/`, `.env.local`, `*.token.json`) vào `.gitignore`.
+
+---
+
+## 3. Quy trình làm việc hàng ngày
+
+### A. Kiểm tra trạng thái đồng bộ (`status`)
+
+Xem bảng trạng thái chi tiết có màu sắc:
+```bash
+gitcsv status
+```
+
+Xem trạng thái ngắn gọn 1 dòng/bảng (tương tự `git status -s`):
+```bash
+gitcsv status -s
+```
+
+*Ý nghĩa các ký hiệu:*
+* ` = ` : Hai bên hoàn toàn khớp nhau (In sync).
+* ` M ` : File CSV cục bộ có sửa đổi.
+* ` R ` : Sheet trên Google có người khác sửa đổi.
+* `?? ` : Bảng mới chỉ có ở CSV (chưa có trên Sheets).
+* ` D ` : Bảng chỉ có trên Sheets (chưa có ở CSV).
+* `UU ` : Cả hai bên cùng sửa đổi (có thể xung đột).
+
+---
+
+### B. So sánh thay đổi chi tiết (`diff`)
+
+Xem chi tiết từng cell, từng dòng và schema bị lệch:
+```bash
+# Xem diff toàn bộ các bảng có thay đổi
+gitcsv diff
+
+# Xem diff riêng 1 bảng cụ thể
+gitcsv diff BossLootData
+```
+
+*Quy ước màu:*
+* Màu xanh lá (`+`): Dòng hoặc cột chỉ có ở CSV.
+* Màu đỏ (`-`): Dòng hoặc cột chỉ có ở Google Sheets.
+* Màu vàng (`~`): Giá trị cell bị thay đổi giữa CSV và Sheet.
+
+---
+
+### C. Đẩy dữ liệu từ CSV lên Google Sheets (`push`)
+
+Đẩy thay đổi của 1 bảng:
+```bash
+gitcsv push BossLootData
+```
+
+Đẩy thay đổi của toàn bộ các bảng:
+```bash
+gitcsv push --all
+# hoặc viết tắt:
+gitcsv push -a
+```
+
+*Các tùy chọn an toàn:*
+* `-n` / `--dry-run`: Chạy thử xem trước kết quả mà không ghi thật (`gitcsv push -na`).
+* `-f` / `--force`: Ép buộc ghi đè lên Google Sheets ngay cả khi người khác vừa sửa trên Sheet.
+* `--accept-schema`: Cho phép đẩy khi bạn có thêm/bớt/đổi thứ tự cột.
+* **Gộp cờ ngắn gọn**: Bạn có thể gõ `gitcsv push -fna` (chạy thử, ép buộc, cho tất cả bảng).
+
+---
+
+### D. Kéo dữ liệu từ Google Sheets về CSV (`pull`)
+
+Kéo dữ liệu mới nhất từ Google Sheets về ghi đè file CSV:
+```bash
+# Kéo 1 bảng
+gitcsv pull BossLootData
+
+# Kéo tất cả các bảng
+gitcsv pull --all
+```
+
+Tương tự `push`, bạn có thể dùng `-n` (chạy thử) hoặc `-f` (ghi đè thay đổi chưa lưu ở local).
+
+---
+
+### E. Hợp nhất 3 chiều thông minh (`sync`)
+
+Khi cả bạn và đồng đội đều sửa bảng (bạn sửa cột `Cost`, đồng đội sửa cột `Stock` trên Sheet):
+```bash
+gitcsv sync BossLootData
+```
+`gitcsv` sẽ tự động ghép các ô dữ liệu độc lập mà không làm mất công sức của ai!
+
+#### Giải quyết xung đột (Conflict Resolution):
+Nếu cả hai người cùng sửa **đúng một ô dữ liệu** thành các giá trị khác nhau:
+1. **Interactive Prompt**: CLI sẽ hỏi trực tiếp:
+   ```text
+   ? Choose conflict resolution strategy [ours/theirs/abort] (abort): 
+   ```
+   * Chọn `ours`: Giữ giá trị của bạn ở CSV.
+   * Chọn `theirs`: Lấy giá trị của đồng đội trên Sheet.
+2. **Flag trực tiếp**:
+   ```bash
+   gitcsv sync BossLootData --ours
+   # hoặc:
+   gitcsv sync BossLootData --theirs
+   ```
+
+---
+
+### F. Khôi phục file khi lỡ tay sửa hỏng (`restore`)
+
+Nếu bạn đang sửa file CSV cục bộ nhưng lỡ tay làm hỏng dữ liệu và muốn quay lại bản đồng bộ gần nhất:
+```bash
+gitcsv restore BossLootData
+```
+File `Assets/CSV/BossLootData.csv` sẽ được hoàn trả về nguyên trạng bản BASE gần nhất trong tích tắc.
+
+---
+
+### G. Hoàn tác lệnh vừa ghi (`undo`)
+
+Nếu bạn vừa lỡ tay chạy `push` hoặc `pull` nhầm bảng và muốn hoàn tác lại trạng thái trước khi ghi:
+```bash
+gitcsv undo BossLootData
+```
+Cả file CSV cục bộ và tab trên Google Sheets sẽ được phục hồi lại đúng ảnh chụp (before-image) trước lúc ghi!
+
+---
+
+### H. Khám sức khỏe dự án (`doctor`)
+
+Kiểm tra toàn diện tính toàn vẹn của dự án:
+```bash
+gitcsv doctor
+```
+Lệnh này sẽ kiểm tra:
+* File cấu hình `.gitcsv/config.json`.
+* Kiểm tra CSV có bị thiếu cột, sai kiểu dữ liệu hay lỗi cú pháp không.
+* Kiểm tra trên Google Sheets có ai vô tình gõ công thức (`=SUM(...)`) vào tab dữ liệu không.
+* Kiểm tra có giao dịch nào bị đứt đoạn cần phục hồi không.

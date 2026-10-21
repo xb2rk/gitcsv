@@ -1,5 +1,14 @@
 __pycache__/
 *.py[cod]
+*$py.class
+*.egg-info/
+build/
+dist/
 .pytest_cache/
-.venv/
-.fccsv-v3/
+.coverage
+.gitcsv/
+.env
+.env.local
+token.json
+credentials.json
+service_account.json
